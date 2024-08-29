@@ -1,0 +1,121 @@
+# TELE4642 LAB1 PART(B) Trace2
+# Every comments are in PART(A)
+
+import numpy as np
+import matplotlib.pyplot as plt
+from collections import deque
+
+class Packet:
+    def __init__(self, packet_number, arrival_time, size):
+        self.packet_number = packet_number
+        self.arrival_time = arrival_time
+        self.departure_time = None
+        self.size = size
+
+class Queue:
+    def __init__(self):
+        self.queue_array = deque()
+        self.total_packets = 0
+        self.total_time_in_system = 0
+
+    def insert(self, packet):
+        self.queue_array.append(packet)
+        self.total_packets += 1
+
+    def pop(self):
+        return self.queue_array.popleft() if self.queue_array else None
+
+    def calculate_statistics(self, total_arrivals):
+        avg_T = self.total_time_in_system / total_arrivals if total_arrivals > 0 else 0
+        return avg_T
+
+class Server:
+    def __init__(self):
+        self.service_rate = 10**4
+
+    def service(self, packet, current_time):
+        service_time = packet.size / self.service_rate
+        packet.departure_time = current_time + service_time
+        return packet.departure_time, service_time
+
+class Source:
+    def __init__(self, filename):
+        self.filename = filename
+
+    def generate(self):
+        packets = [] # Storage for generated packets
+        arrival_time = 0
+        with open(self.filename, 'r') as file:
+            for i, line in enumerate(file):  # Use "enumerate" to iterate through each line in the file, where "i" is the line number and "line" is the content of the line
+                inter_arrival_time, size_in_bytes = map(float, line.split()) #Use the split method to split the row content into two parts and convert them to floating-point numbers
+                size = size_in_bytes * 8
+                if i == 0:
+                    arrival_time = 0
+                else:
+                    arrival_time += inter_arrival_time
+                packets.append(Packet(i, arrival_time, size))
+        return packets
+
+def main(filename):
+    source = Source(filename)
+    server = Server()
+    queue = Queue()
+    packets = source.generate()
+    events = deque()
+    summ = 0
+    P = [0] * 11
+
+    queue_length = 0
+
+    for packet in packets:
+        queue.insert(packet)
+        events.append((packet.arrival_time, 'arrives', packet))
+
+    current_time = 0
+    total_arrivals = len(packets)
+
+    while queue.queue_array:
+        next_packet = queue.pop()
+        service_time = server.service(next_packet, max(current_time, next_packet.arrival_time))
+        queue.total_time_in_system += next_packet.departure_time - next_packet.arrival_time
+        events.append((next_packet.departure_time, 'departs', next_packet))
+        current_time = max(current_time, next_packet.departure_time)
+
+    events = sorted(events, key=lambda x: x[0])
+    with open('output_trace2.txt', 'w') as f:
+        for event in events:
+            time, event_type, packet = event
+            if event_type == 'arrives':
+                queue_length += 1
+                if queue_length - 1 < 11:
+                    P[queue_length - 1] += 1
+                if packet.packet_number <= total_arrivals - 2 and packet.departure_time < packets[packet.packet_number + 1].arrival_time:
+                    summ += 1
+                summ += queue_length - 1
+                f.write(f"[{time:.2f}]: pkt {packet.packet_number} arrives and finds {queue_length - 1} packets in the queue\n")
+            elif event_type == 'departs':
+                queue_length -= 1
+                f.write(f"[{time:.2f}]: pkt {packet.packet_number} departs having spent {time - packet.arrival_time:.2f} us in the system\n")
+        probabilities = [p / total_arrivals for p in P]
+        avg_T = queue.calculate_statistics(total_arrivals)
+        f.write("Simulation ends:\n")
+        f.write(f"Average number of packets in the system (N): {summ / total_arrivals:.2f}\n")
+        f.write(f"Average time spent by a packet in the system (T): {avg_T:.2f} us\n")
+        for n in range(11):
+            f.write(f"P({n}): {probabilities[n]:.4f}\n")
+
+        plt.figure(figsize=(10, 5))
+        plt.bar(range(len(probabilities)), probabilities, color='gray')
+        plt.xlabel('n')
+        plt.ylabel('P(n)')
+        plt.title('Probability of finding n packets in the system on arrival (trace2)')
+        plt.grid(True)
+        plt.savefig('Probability of finding n packets in the system on arrival (trace2).png')
+        plt.close()
+
+if __name__ == "__main__":
+    filename = 'trace2.txt'
+    main(filename)
+
+# TELE4642 LAB1 PART(B) Trace2
+# Every comments are in PART(A)
