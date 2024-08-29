@@ -1,0 +1,32 @@
+#Possion arrival and inter arrival time distribution (lambda=1.8 packets per us)
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+# 参数设置
+lambda_packets_per_us = 1.8  # 1.8 packets per microsecond
+num_packets = 1000  # 模拟 1000 个数据包到达
+
+# 生成指数分布的到达时间间隔
+inter_arrival_times = np.random.exponential(1/lambda_packets_per_us, num_packets)
+
+# 计算每个数据包的到达时间
+arrival_times = np.cumsum(inter_arrival_times)
+
+# 可视化数据包到达时间点
+plt.figure(figsize=(10, 6))
+plt.plot(arrival_times, np.arange(1, num_packets + 1), marker='o', linestyle='none')
+plt.title('Poisson Process: Packet Arrival Times')
+plt.xlabel('Time (microseconds)')
+plt.ylabel('Packet Number')
+plt.grid(True)
+plt.show()
+
+# 可视化数据包到达时间间隔
+plt.figure(figsize=(10, 6))
+plt.hist(inter_arrival_times, bins=50, edgecolor='k', alpha=0.7)
+plt.title('Histogram of Packet Inter-Arrival Times')
+plt.xlabel('Inter-Arrival Time (microseconds)')
+plt.ylabel('Frequency')
+plt.grid(True)
+plt.show()

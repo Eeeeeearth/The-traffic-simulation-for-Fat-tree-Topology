@@ -1,0 +1,125 @@
+#TELE4642 LAB1 PART(A) Faster method (lambda=9 packets per us)
+
+import numpy as np
+import matplotlib.pyplot as plt
+from collections import deque
+
+class Packet:
+    def __init__(self, packet_number, arrival_time, size):
+        self.packet_number = packet_number
+        self.arrival_time = arrival_time
+        self.departure_time = None
+        self.size = size
+
+class Queue:
+    def __init__(self):
+        self.queue_array = deque() # Use deque
+        self.total_packets = 0
+        self.total_time_in_system = 0
+
+    def insert(self, packet):
+        self.queue_array.append(packet)
+        self.total_packets += 1
+
+    def pop(self):
+        return self.queue_array.popleft() if self.queue_array else None
+
+    def calculate_statistics(self, total_arrivals):
+        avg_T = self.total_time_in_system / total_arrivals if total_arrivals > 0 else 0 #Calculate T
+        return avg_T
+
+class Server:
+    def __init__(self):
+        self.service_rate = 10**4  # 10 Gbps converted to us per bit
+
+    def service(self, packet, current_time):
+        service_time = packet.size / self.service_rate  # Time in the server
+        packet.departure_time = current_time + service_time  # Departure time
+        return packet.departure_time, service_time
+
+class Source:
+    def __init__(self, packet_count, _lambda):
+        self.packet_count = packet_count
+        self._lambda = _lambda
+
+    def generate(self):
+        packets = []
+        arrival_time = 0
+        for i in range(self.packet_count):
+            size = int(np.random.exponential(scale=10000))  # Packet size follows exponential distribution with mean 10000 bits
+            if i != 0:
+                inter_arrival_time = np.random.exponential(1 / self._lambda)  # Inter-arrival time follows exponential distribution
+            else:
+                inter_arrival_time = 0 # Make the first one arrives at 0.00 us
+            arrival_time += inter_arrival_time  # Calculate arrival time
+            packets.append(Packet(i, arrival_time, size))
+        return packets
+
+def main(packet_count, _lambda):
+    source = Source(packet_count, _lambda)
+    server = Server()
+    queue = Queue()
+    packets = source.generate()  # The set of generated packets
+    events = deque()  # The set of events (use deque for efficient popleft operation)
+    summ = 0  # The sum of the queueing packets number
+    P = [0] * 11  # Every elements p in P represents the number of times n queued packets have appeared
+
+    queue_length = 0
+
+    for packet in packets:  # Iterates over all generated packets
+        queue.insert(packet)  # Insert packet into queue
+        events.append((packet.arrival_time, 'arrives', packet))  # The event records the packet's arrival time and the corresponding action type ('arrives')
+
+    current_time = 0
+    total_arrivals = len(packets)  # The number of generated packets
+
+    while queue.queue_array:
+        next_packet = queue.pop() # Find packet in server to calculate time
+        service_time = server.service(next_packet, max(current_time, next_packet.arrival_time))  # Update service_time to avoid the extra empty time in service time
+        queue.total_time_in_system += next_packet.departure_time - next_packet.arrival_time  # Total time in system
+        events.append((next_packet.departure_time, 'departs', next_packet))
+        current_time = max(current_time, next_packet.departure_time)
+
+    events = sorted(events, key=lambda x: x[0])  # Sort events list
+    with open('output lambda=9.txt', 'w') as f:
+        for event in events: # Iterates over all events
+            time, event_type, packet = event
+            if event_type == 'arrives':
+                queue_length += 1
+                # Calculate elements p in P[p]
+                if queue_length - 1 < 11:
+                    P[queue_length - 1] += 1
+                # Calculate the total number of packets in the server upon each arrival
+                if packet.packet_number <= total_arrivals - 2 and packet.departure_time < packets[packet.packet_number + 1].arrival_time:
+                    summ += 1 # System packets number = queueing packets number + 1 (or +0)
+                summ += queue_length - 1
+                # Print log
+                f.write(f"[{time:.2f}]: pkt {packet.packet_number} arrives and finds {queue_length - 1} packets in the queue\n")
+            elif event_type == 'departs':
+                queue_length -= 1
+                f.write(f"[{time:.2f}]: pkt {packet.packet_number} departs having spent {time - packet.arrival_time:.2f} us in the system\n")
+        # Calculate and print N, T, P(n)
+        probabilities = [p / total_arrivals for p in P]
+        avg_T = queue.calculate_statistics(total_arrivals)
+        f.write("Simulation ends:\n")
+        f.write(f"Average number of packets in the system (N): {summ / total_arrivals:.2f}\n")
+        f.write(f"Average time spent by a packet in the system (T): {avg_T:.2f} us\n")
+        for n in range(11):
+            f.write(f"P({n}): {probabilities[n]:.4f}\n")
+
+        # Plotting P(n)
+        plt.figure(figsize=(10, 5))
+        plt.bar(range(len(probabilities)), probabilities, color='gray')
+        plt.xlabel('n')
+        plt.ylabel('P(n)')
+        plt.title('Probability of finding n packets in the system on arrival (lambda=9)')
+        plt.grid(True)
+        plt.savefig('Probability of finding n packets in the system on arrival (lambda=9).png')
+        plt.close()
+
+if __name__ == "__main__":
+    packet_count = 1000000
+    _lambda = 9
+    main(packet_count, _lambda)
+
+#TELE4642 LAB1 PART(A) Faster method (lambda=9 packets per us)

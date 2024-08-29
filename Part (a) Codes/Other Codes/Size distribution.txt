@@ -1,0 +1,30 @@
+#Size distribution
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+# 生成数据包大小
+np.random.seed(0)  # 为了结果可重复
+packet_count = 10000
+mean_size = 10000  # 数据包大小的均值为10000bits
+
+# 使用指数分布生成数据包大小
+packet_sizes = np.random.exponential(scale=mean_size, size=packet_count)
+
+# 绘制每个数据包的大小（横轴是数据包编号，纵轴是数据包大小）
+plt.figure(figsize=(12, 6))
+plt.plot(range(packet_count), packet_sizes, marker='o', linestyle='', markersize=2)
+plt.xlabel('Packet Number')
+plt.ylabel('Packet Size (bits)')
+plt.title('Packet Sizes')
+plt.grid(True)
+plt.show()
+
+# 绘制每个数据包大小值的概率（横坐标是数据包大小，纵坐标是数据包大小取得该值的概率）
+plt.figure(figsize=(12, 6))
+plt.hist(packet_sizes, bins=100, density=True, alpha=0.6, color='g')
+plt.xlabel('Packet Size (bits)')
+plt.ylabel('Probability')
+plt.title('Probability Distribution of Packet Sizes')
+plt.grid(True)
+plt.show()
